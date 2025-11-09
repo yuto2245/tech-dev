@@ -1,0 +1,36 @@
+{
+  "name": "tech-dev",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TechDev is an AI-assisted technical publishing platform integrating GitHub content ownership with automated fact checking.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.80.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.553.0",
+    "next": "14.2.33",
+    "openai": "^6.8.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.15",
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.13",
+    "postcss": "^8.5.6",
+    "prettier": "^3.6.2",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.9.3"
+  }
+}

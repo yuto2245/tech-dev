@@ -1,66 +1,54 @@
-# 概要
-tech-devは、技術者のためのブログプラットフォームです。GitHubで記事を管理しながら、AIによる情報の鮮度と正確性チェックを備えた、信頼性の高い技術知識共有を実現します。
-# コンセプト
-GitHub資産としての記事管理: ユーザーは自分の技術記事をGitHubリポジトリとして所有・管理できます
-AIによる情報品質保証: プラットフォーム上のAIが記事内容を監視し、古い情報や誤った技術情報を自動検出します
-最適化された閲覧体験: 各記事はプラットフォーム上で最適な表示形式で共有されます
-着想源: ZennのGitHub連携とGrokipediaのAIによるファクトチェック機能を融合させました
-# 主な機能
-## ユーザー向け機能
-GitHub連携投稿: GitHubリポジトリと連携した記事管理
-マークダウン編集: 技術記事に最適化されたエディタ
-AIによる信頼性チェック:
-事実整合性の検証
-論理的一貫性の確認
-古い情報の検出と警告
-信頼性ダッシュボード: 記事の信頼性スコアを可視化
-## コミュニティ機能: コメント、いいね、フォロー機能
-技術的特徴
-Next.js + Vercelによるフロントエンド
-SupabaseによるバックエンドとDB管理
-OpenAI APIを活用した情報検証
-GitHub OAuth連携
-# MVPロードマップ
-## フェーズ1 (現在)
-基本的な記事投稿・閲覧機能
-GitHub連携
-AIによる基本的な情報チェック
-## フェーズ2 (予定)
-高度な信頼性ダッシュボード
-コミュニティ機能の強化
-AIチェック機能の拡張
-# デモ・使い方
-GitHubアカウントでサインアップ
-リポジトリを連携または記事を直接作成
-マークダウンで記事を書く
-投稿時にAIが自動的に内容を検証
-信頼性スコアと共に記事が公開される
-インストール方法 (開発者向け)
+# TechDev Platform
+
+TechDevは、GitHubでコンテンツを管理するエンジニア向けに設計されたAIファクトチェック付きのパブリッシング・プラットフォームです。ZennのGitHub連携、Grokipediaの整合性検証、Dev.toのコミュニティ性を統合し、記事の信頼性を透明に提示します。
+
+## コンセプト
+- **GitHub資産の尊重**: 記事は常にユーザーのGitHubリポジトリに保存され、TechDevは最適なビューとAI検証を提供します。
+- **AIによる整合性チェック**: GPT-4o-miniを利用したファクトチェック/ロジック検証/カバレッジ評価をJSON形式で保存し、読者に公開します。
+- **透明な信頼性スコア**: 信頼性ダッシュボードと記事ページにAIスコアと改善提案を表示し、改善サイクルを明確化します。
+- **低コスト・高速開発**: Next.js + Vercel + Supabaseの構成で、非同期キューによりコストとレイテンシを最適化します。
+
+## リポジトリ構成
+```
+app/                 # Next.js App Router ベースのUIとAPI
+components/          # UIコンポーネント群 (Hero, Trust Meter, AIレポートなど)
+lib/                 # AIチェックやGitHub連携、Supabaseクライアントのユーティリティ
+supabase/migrations/ # PostgreSQLテーブル定義
+types/               # 記事・AIレポートに関する型定義
+```
+
+## 主な機能
+- ホームページ: プラットフォームの価値提案、ワークフロー図、MVPチェックリストを掲載
+- 記事一覧/詳細: AIスコアと改善提案を含む記事の閲覧
+- AIチェックAPI: `/api/ai/check` に記事を送信すると信頼性スコアを返却
+- 信頼性ダッシュボード: Fact/Logic/Coverageの平均値と履歴テーブルを表示
+- GitHub同期のプレイブック: ドキュメントとスタートガイドでセットアップを解説
+
+## 開発環境のセットアップ
 ```bash
-# リポジトリのクローン
-git clone https://github.com/yourusername/tech-dev.git
-cd tech-dev
-
-# 依存関係のインストール
 npm install
-
-# 開発サーバーの起動
 npm run dev
 ```
 
-# 環境設定
-.env.localファイルを作成し、以下の環境変数を設定:
+`.env.local` に以下の環境変数を設定してください。
 ```
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-OPENAI_API_KEY=your_openai_api_key
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_KEY=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+OPENAI_API_KEY=
 ```
-# コントリビューション
-コントリビューションは大歓迎です！以下の手順で参加できます:
-このリポジトリをフォーク
-新しいブランチを作成 (git checkout -b feature/amazing-feature)
-変更をコミット (git commit -m 'Add amazing feature')
-ブランチにプッシュ (git push origin feature/amazing-feature)
-プルリクエストを作成
+
+> `OPENAI_API_KEY` が未設定の場合、AIチェックAPIはスタブデータを返します。
+
+## Supabase スキーマ
+`supabase/migrations/0001_initial_schema.sql` に、users / articles / article_versions / ai_reports / human_input_scores / interactions / audit_logs のテーブル構成を定義しています。`supabase db push` でデータベースに適用できます。
+
+## ロードマップ
+1. **Phase 0 (MVP)**: 認証、投稿、AI整合性チェック、信頼性スコア表示
+2. **Phase 1**: コメント・いいね、GitHub同期、ダッシュボード拡張
+3. **Phase 2**: AI生成疑惑スコア、通知、コラボレーション機能
+
+## ライセンス
+このプロジェクトはMITライセンスで提供予定です。
