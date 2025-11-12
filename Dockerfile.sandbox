@@ -1,0 +1,23 @@
+FROM ubuntu:22.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    xfce4 xfce4-goodies \
+    x11vnc xvfb xdotool \
+    websockify novnc \
+    firefox \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -ms /bin/bash agent && echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+USER agent
+WORKDIR /home/agent
+
+RUN x11vnc -storepasswd secret /home/agent/.vncpass
+
+EXPOSE 5900 6080
+
+CMD bash -c "\
+    Xvfb :99 -screen 0 1280x800x24 & \
+    x11vnc -display :99 -forever -rfbauth /home/agent/.vncpass -rfbport 5900 -shared & \
+    websockify --web=/usr/share/novnc/ 6080 localhost:5900 & \
+    export DISPLAY=:99 && xfce4-session"
