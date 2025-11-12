@@ -52,6 +52,14 @@ cd tech-dev
 
 ### 2. サンドボックス環境を準備
 
+まず、リポジトリのルートで `scripts/check_sandbox_env.py` を実行し、必要なコマンドが揃っているかを確認することを推奨します。
+
+```bash
+./scripts/check_sandbox_env.py --details
+# Docker を使わずネイティブ実行を想定している場合
+./scripts/check_sandbox_env.py --native --details
+```
+
 #### Docker を利用する場合（推奨）
 
 1. `docker` デーモンを起動します。CI やコンテナ内で権限が制限されている場合は、以下のように `vfs` ストレージドライバとホストネットワークを組み合わせると iptables や overlayfs の制限を回避できます。
