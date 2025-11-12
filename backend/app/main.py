@@ -1,8 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .docker_manager import build_manager
+from .docker_manager import (
+    DockerExecutionError,
+    DockerUnavailable,
+    build_manager,
+)
 
 app = FastAPI(title="Agent Sandbox API", version="0.1.0")
 
@@ -37,14 +41,26 @@ def health_check() -> dict[str, str]:
 
 @app.post("/sandbox/start", response_model=SandboxResponse)
 def start_sandbox(host: str = "localhost"):
-    docker_manager.ensure_started()
+    try:
+        docker_manager.ensure_started()
+    except DockerUnavailable as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except DockerExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
     url = docker_manager.get_vnc_url(host=host)
     return SandboxResponse(url=url)
 
 
 @app.get("/sandbox/url", response_model=SandboxResponse)
 def get_sandbox_url(host: str = "localhost"):
-    docker_manager.ensure_started()
+    try:
+        docker_manager.ensure_started()
+    except DockerUnavailable as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except DockerExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
     url = docker_manager.get_vnc_url(host=host)
     return SandboxResponse(url=url)
 
@@ -55,10 +71,17 @@ def exec_command(payload: CommandRequest):
         output = docker_manager.exec_in_sandbox(payload.command)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except DockerUnavailable as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except DockerExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
     return CommandResponse(command=payload.command, output=output)
 
 
 @app.post("/sandbox/stop")
 def stop_sandbox() -> dict[str, str]:
-    docker_manager.destroy_sandbox()
+    try:
+        docker_manager.destroy_sandbox()
+    except DockerUnavailable as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     return {"status": "stopped"}

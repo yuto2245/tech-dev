@@ -1,7 +1,16 @@
 import os
+import shutil
 import subprocess
 import time
 from typing import Optional
+
+
+class DockerUnavailable(RuntimeError):
+    """Raised when the Docker CLI is not accessible."""
+
+
+class DockerExecutionError(RuntimeError):
+    """Raised when a Docker command fails to execute successfully."""
 
 
 class DockerManager:
@@ -26,7 +35,19 @@ class DockerManager:
         return self._container_name
 
     def _run(self, *args: str, check: bool = True) -> subprocess.CompletedProcess:
-        return subprocess.run(args, check=check, capture_output=True, text=True)
+        docker_path = shutil.which(args[0]) if args else None
+        if docker_path is None and args and args[0] == "docker":
+            raise DockerUnavailable("Docker CLI is not available on PATH.")
+
+        try:
+            return subprocess.run(args, check=check, capture_output=True, text=True)
+        except FileNotFoundError as exc:
+            raise DockerUnavailable("Docker CLI could not be executed.") from exc
+        except subprocess.CalledProcessError as exc:
+            stderr = exc.stderr.strip() if exc.stderr else ""
+            stdout = exc.stdout.strip() if exc.stdout else ""
+            message = stderr or stdout or str(exc)
+            raise DockerExecutionError(message) from exc
 
     def create_sandbox(self) -> str:
         if self._container_name and self._is_running():
@@ -53,16 +74,16 @@ class DockerManager:
             f"{self.host_port}:6080",
             self.base_image,
         ]
-        proc = self._run(*cmd)
-        if proc.returncode != 0:
-            stderr = proc.stderr.strip()
-            raise RuntimeError(f"Failed to start sandbox: {stderr}")
+        self._run(*cmd)
         return self._container_name
 
     def _is_running(self) -> bool:
         if not self._container_name:
             return False
-        proc = self._run("docker", "ps", "-q", "-f", f"name={self._container_name}", check=False)
+        try:
+            proc = self._run("docker", "ps", "-q", "-f", f"name={self._container_name}", check=False)
+        except DockerUnavailable:
+            return False
         return bool(proc.stdout.strip())
 
     def ensure_started(self) -> str:
@@ -79,11 +100,19 @@ class DockerManager:
 
         self.ensure_started()
         assert self._container_name is not None
-        proc = subprocess.run(
-            ["docker", "exec", self._container_name, "bash", "-lc", command],
-            capture_output=True,
-            text=True,
-        )
+        try:
+            proc = self._run(
+                "docker",
+                "exec",
+                self._container_name,
+                "bash",
+                "-lc",
+                command,
+                check=False,
+            )
+        except DockerUnavailable as exc:
+            raise DockerUnavailable("Docker CLI is required to execute sandbox commands.") from exc
+
         if proc.returncode != 0:
             stderr = proc.stderr.strip()
             stdout = proc.stdout.strip()
@@ -98,7 +127,10 @@ class DockerManager:
     def destroy_sandbox(self) -> None:
         if not self._container_name:
             return
-        subprocess.run(["docker", "stop", self._container_name], check=False, capture_output=True)
+        try:
+            subprocess.run(["docker", "stop", self._container_name], check=False, capture_output=True)
+        except FileNotFoundError as exc:
+            raise DockerUnavailable("Docker CLI could not be executed.") from exc
         self._container_name = None
         self._created_at = None
 
