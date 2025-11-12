@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .docker_manager import (
-    DockerExecutionError,
-    DockerUnavailable,
+    SandboxExecutionError,
+    SandboxUnavailable,
     build_manager,
 )
 
@@ -43,9 +43,9 @@ def health_check() -> dict[str, str]:
 def start_sandbox(host: str = "localhost"):
     try:
         docker_manager.ensure_started()
-    except DockerUnavailable as exc:
+    except SandboxUnavailable as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    except DockerExecutionError as exc:
+    except SandboxExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
     url = docker_manager.get_vnc_url(host=host)
@@ -56,9 +56,9 @@ def start_sandbox(host: str = "localhost"):
 def get_sandbox_url(host: str = "localhost"):
     try:
         docker_manager.ensure_started()
-    except DockerUnavailable as exc:
+    except SandboxUnavailable as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    except DockerExecutionError as exc:
+    except SandboxExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
     url = docker_manager.get_vnc_url(host=host)
@@ -71,9 +71,9 @@ def exec_command(payload: CommandRequest):
         output = docker_manager.exec_in_sandbox(payload.command)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except DockerUnavailable as exc:
+    except SandboxUnavailable as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
-    except DockerExecutionError as exc:
+    except SandboxExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
     return CommandResponse(command=payload.command, output=output)
 
@@ -82,6 +82,6 @@ def exec_command(payload: CommandRequest):
 def stop_sandbox() -> dict[str, str]:
     try:
         docker_manager.destroy_sandbox()
-    except DockerUnavailable as exc:
+    except SandboxUnavailable as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     return {"status": "stopped"}
