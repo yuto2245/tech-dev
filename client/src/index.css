@@ -230,6 +230,53 @@
       max-width: 1280px; /* Standard content width */
     }
   }
+
+  .code-block {
+    @apply relative flex overflow-hidden rounded-2xl border bg-white dark:bg-slate-900/80;
+  }
+
+  .code-block__line-numbers {
+    @apply select-none border-r border-border/60 bg-slate-50/60 px-4 py-6 text-right text-[0.7rem] font-mono leading-6 text-slate-400 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-600;
+  }
+
+  .code-block__line-numbers span {
+    @apply block;
+  }
+
+  .code-block__content {
+    @apply flex-1 overflow-x-auto;
+  }
+
+  .code-block__content pre {
+    background: transparent !important;
+    margin: 0;
+    padding: 1.5rem;
+    min-width: 100%;
+  }
+
+  .code-block__content code {
+    font-family: "ui-monospace", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.9rem;
+    line-height: 1.8;
+  }
+
+  .code-block__toolbar {
+    @apply absolute right-4 top-3;
+  }
+
+  .shiki {
+    color: var(--shiki-light, currentColor);
+    background-color: var(--shiki-light-bg, transparent) !important;
+  }
+
+  .dark .shiki {
+    color: var(--shiki-dark, currentColor);
+    background-color: var(--shiki-dark-bg, transparent) !important;
+  }
+
+  .dark .shiki span {
+    color: var(--shiki-dark, inherit) !important;
+  }
 }
 
 /* Markdown content styles */

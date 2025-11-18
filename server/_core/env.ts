@@ -11,4 +11,6 @@ export const ENV = {
   githubOwner: process.env.GITHUB_OWNER ?? "",
   githubRepo: process.env.GITHUB_REPO ?? "",
   githubContentDir: process.env.GITHUB_CONTENT_DIR ?? "articles",
+  githubBranch: process.env.GITHUB_BRANCH ?? "main",
+  defaultAuthor: process.env.DEFAULT_AUTHOR ?? "Editorial Team",
 };

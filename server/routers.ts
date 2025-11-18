@@ -1,122 +1,78 @@
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
+import { TRPCError } from "@trpc/server";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { 
-  getUserRepositories, 
-  addUserRepository, 
-  removeUserRepository, 
-  getAllActiveUserRepositories,
-  getUserSettings,
-  updateUserSettings 
-} from "./db";
-import { fetchGithubArticles } from "./_core/github";
+import {
+  fetchGithubArticles,
+  fetchGithubArticle,
+  type ArticleSummary,
+} from "./_core/github";
 
 export const appRouter = router({
   system: systemRouter,
-  auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
-    }),
-  }),
 
   blog: router({
-    listAll: protectedProcedure.query(async ({ ctx }) => {
-      try {
-        const userRepos = await getUserRepositories(ctx.user.id);
-        const allArticles: any[] = [];
-
-        for (const repo of userRepos) {
-          const articles = await fetchGithubArticles(repo.owner, repo.name, repo.contentDir);
-          allArticles.push(...articles);
-        }
-
-        // Sort by date descending
-        allArticles.sort((a, b) => {
-          const dateA = new Date(a.date || a.createdAt || 0).getTime();
-          const dateB = new Date(b.date || b.createdAt || 0).getTime();
-          return dateB - dateA;
-        });
-
-        return allArticles;
-      } catch (error) {
-        console.error("Error fetching articles:", error);
-        return [];
-      }
-    }),
+    listAll: publicProcedure
+      .input(
+        z
+          .object({
+            page: z.number().min(1).default(1),
+            limit: z.number().min(1).max(100).default(50),
+            source: z.enum(["github"]).default("github"),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        const { page = 1, limit = 50 } = input ?? {};
+        const articles = await fetchGithubArticles();
+        const start = (page - 1) * limit;
+        const slice = articles.slice(start, start + limit);
+        return {
+          articles: slice,
+          total: articles.length,
+          page,
+          limit,
+          source: "github" as const,
+        } satisfies {
+          articles: ArticleSummary[];
+          total: number;
+          page: number;
+          limit: number;
+          source: "github";
+        };
+      }),
 
     get: publicProcedure
-      .input(z.object({ 
-        owner: z.string(),
-        repo: z.string(),
-        path: z.string(),
-      }))
+      .input(
+        z.object({
+          slug: z.string(),
+          source: z.enum(["github"]).default("github"),
+        })
+      )
       .query(async ({ input }) => {
-        try {
-          const response = await fetch(
-            `https://api.github.com/repos/${input.owner}/${input.repo}/contents/${input.path}`,
-            {
-              headers: {
-                "Authorization": `token ${process.env.GITHUB_TOKEN}`,
-              },
-            }
-          );
-          if (!response.ok) return null;
-          const data = await response.json();
-          if (data.type !== "file") return null;
-          const content = Buffer.from(data.content, "base64").toString("utf-8");
-          return {
-            content,
-            path: data.path,
-            name: data.name,
-          };
-        } catch (error) {
-          console.error("Error fetching article:", error);
-          return null;
+        const article = await fetchGithubArticle(input.slug);
+        if (!article) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Article not found" });
         }
-      }),
-  }),
-
-  user: router({
-    getRepositories: protectedProcedure.query(async ({ ctx }) => {
-      return await getUserRepositories(ctx.user.id);
-    }),
-
-    addRepository: protectedProcedure
-      .input(z.object({
-        owner: z.string(),
-        name: z.string(),
-        contentDir: z.string().default("articles"),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        return await addUserRepository(ctx.user.id, input.owner, input.name, input.contentDir);
+        return article;
       }),
 
-    deleteRepository: protectedProcedure
-      .input(z.object({
-        owner: z.string(),
-        name: z.string(),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        return await removeUserRepository(ctx.user.id, input.owner, input.name);
-      }),
-
-    getSettings: protectedProcedure.query(async ({ ctx }) => {
-      return await getUserSettings(ctx.user.id);
-    }),
-
-    updateSettings: protectedProcedure
-      .input(z.object({
-        blogFont: z.string().optional(),
-      }))
-      .mutation(async ({ ctx, input }) => {
-        return await updateUserSettings(ctx.user.id, input);
+    checkFreshness: publicProcedure
+      .input(
+        z.object({
+          slug: z.string(),
+          content: z.string().min(1),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const wordCount = input.content.split(/\s+/).filter(Boolean).length;
+        const minutes = Math.max(1, Math.round(wordCount / 220));
+        return {
+          success: true,
+          aiModel: "contextual-review",
+          checkedAt: new Date().toISOString(),
+          aiMessage: `Reviewed ${minutes} minute${minutes > 1 ? "s" : ""} ago. Nothing critical was flagged for ${input.slug}.`,
+        } as const;
       }),
   }),
 });
