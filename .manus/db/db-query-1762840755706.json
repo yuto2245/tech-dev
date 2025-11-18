@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, name, email, blogFont FROM users LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2XA9vpPPYsnubNB.root --database dt49T7po3YPH2f3U2hnkWE --execute SELECT id, name, email, blogFont FROM users LIMIT 5;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "yuto",
+      "email": "s19p028ny@gmail.com",
+      "blogFont": "anthropic-serif"
+    },
+    {
+      "id": "840064",
+      "name": "Official",
+      "email": "official@agentapp.io",
+      "blogFont": "openai-sans"
+    },
+    {
+      "id": "840123",
+      "name": "Test User",
+      "email": "test@example.com",
+      "blogFont": "openai-sans"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\tblogFont\n1\tyuto\ts19p028ny@gmail.com\tanthropic-serif\n840064\tOfficial\tofficial@agentapp.io\topenai-sans\n840123\tTest User\ttest@example.com\topenai-sans\n",
+  "stderr": "",
+  "execution_time_ms": 1552
+}

@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `blogFont` varchar(64) DEFAULT 'system-ui' NOT NULL;

@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1762842401191,
+      "tag": "0000_graceful_titania",
+      "breakpoints": true
+    }
+  ]
+}

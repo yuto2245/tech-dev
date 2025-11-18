@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `blogFont` enum('openai-sans','anthropic-serif') DEFAULT 'openai-sans' NOT NULL;

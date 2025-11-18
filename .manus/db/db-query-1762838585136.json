@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM users WHERE id IN (2, 3, 4);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2XA9vpPPYsnubNB.root --database dt49T7po3YPH2f3U2hnkWE --execute DELETE FROM users WHERE id IN (2, 3, 4);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1581
+}

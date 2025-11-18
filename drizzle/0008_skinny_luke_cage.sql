@@ -1,0 +1,1 @@
+ALTER TABLE `users` MODIFY COLUMN `blogFont` enum('openai-sans','anthropic-serif','source-serif-4') NOT NULL DEFAULT 'openai-sans';
