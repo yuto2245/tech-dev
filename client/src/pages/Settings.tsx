@@ -1,268 +1,152 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { Button } from "@/components/ui/button";
+import Header from "@/components/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { APP_TITLE } from "@/const";
-import { useLocation } from "wouter";
-import { Moon, Sun, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
-import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { usePreferences, getBlogFontFamily, type BlogFont } from "@/contexts/PreferencesContext";
 import { toast } from "sonner";
+import { Check, Moon, Sun } from "lucide-react";
 
-const FONT_OPTIONS = [
-  { value: "openai-sans", label: "OpenAI Sans" },
-  { value: "anthropic-serif", label: "Anthropic Serif" },
-  { value: "source-serif-4", label: "Source Serif 4" },
+const FONT_OPTIONS: { value: BlogFont; label: string; example: string }[] = [
+  { value: "openai-sans", label: "OpenAI Sans", example: "system sans-serif" },
+  { value: "anthropic-serif", label: "Anthropic Serif", example: "Georgia" },
+  { value: "source-serif-4", label: "Source Serif 4", example: "Source Serif" },
+];
+
+const OPERATIONS_GUIDE = [
+  {
+    title: "GitHub に push するだけで公開",
+    description:
+      "GITHUB_OWNER / GITHUB_REPO / GITHUB_CONTENT_DIR を .env に設定すると、サーバーが GitHub API から Markdown を読み込みます。",
+    items: [
+      "記事を Markdown で作成し、指定ディレクトリに配置",
+      "main などの公開ブランチへ push",
+      "数分後に一覧と詳細画面へ自動反映 (キャッシュ 5 分)",
+    ],
+  },
+  {
+    title: "カードリンクの記法",
+    description:
+      "コードフェンスに link-card を指定し、url / title / description / image を書くだけでリッチカード化されます。",
+    items: [
+      "``````link-card で始め、key: value を 1 行ずつ記述",
+      "url は必須。title / description / site / image は任意",
+      "MarkdownRenderer が LinkCard コンポーネントに変換",
+    ],
+  },
+  {
+    title: "コードブロックの使い方",
+    description:
+      "```ts や ```bash など言語を指定すると Shiki ベースの CodeBlock が行番号とコピー機能付きで描画されます。",
+    items: [
+      "コピーは右上のボタンから 1 クリック",
+      "ダーク/ライトテーマに自動追随",
+      "インラインコードは従来通りバッククォートでOK",
+    ],
+  },
+];
+
+const DEPLOY_TIPS = [
+  "フロントエンドは pnpm run build で生成される dist/public を GitHub Pages に配置可能",
+  "サーバー(API)は Node.js (例えば Render, Fly.io, AWS) など常時稼働する環境が必要",
+  "GitHub Pages + 外部の Node サービスという二段構成が最も簡単な運用パターン",
 ];
 
 export default function Settings() {
-  const { user, loading, isAuthenticated } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [, navigate] = useLocation();
-  const { data: settings } = trpc.user.getSettings.useQuery();
-  const utils = trpc.useUtils();
-  const updateSettingsMutation = trpc.user.updateSettings.useMutation({
-    onSuccess: () => {
-      utils.user.getSettings.invalidate();
-    },
-  });
-  const [selectedFont, setSelectedFont] = useState(settings?.blogFont || "openai-sans");
-  const { data: repositories = [] } = trpc.user.getRepositories.useQuery();
-  const addRepositoryMutation = trpc.user.addRepository.useMutation();
-  const deleteRepositoryMutation = trpc.user.deleteRepository.useMutation();
-  const [repoOwner, setRepoOwner] = useState("");
-  const [repoName, setRepoName] = useState("");
-  const [contentDir, setContentDir] = useState("articles");
+  const { blogFont, setBlogFont } = usePreferences();
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Please log in to access settings</p>
-      </div>
-    );
-  }
-
-  const handleFontChange = async (fontValue: string) => {
-    setSelectedFont(fontValue);
-    try {
-      await updateSettingsMutation.mutateAsync({ blogFont: fontValue });
-      toast.success("Font setting updated");
-      // Invalidate cache to force refetch
-      await utils.user.getSettings.invalidate();
-    } catch (error) {
-      toast.error("Failed to update font setting");
-      setSelectedFont(settings?.blogFont || "openai-sans");
-    }
-  };
-
-  const getFontFamily = (fontValue: string) => {
-    if (fontValue === "anthropic-serif") return "Georgia, 'Times New Roman', serif";
-    if (fontValue === "source-serif-4") return "'Source Serif 4', Georgia, 'Times New Roman', serif";
-    return "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
+  const handleFontChange = (font: BlogFont) => {
+    setBlogFont(font);
+    toast.success("Font preference saved locally");
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">{APP_TITLE}</h1>
-          <nav className="flex gap-4 items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            >
-              {theme === 'light' ? (
-                <Moon className="w-5 h-5" />
-              ) : (
-                <Sun className="w-5 h-5" />
-              )}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-              {user?.name?.charAt(0).toUpperCase()}
-            </Button>
-          </nav>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background text-foreground">
+      <Header />
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10">
+        <section>
+          <h1 className="text-3xl font-bold">Reader preferences</h1>
+          <p className="text-sm text-muted-foreground">変更はローカルストレージに保存され、即時にブログへ反映されます。</p>
+        </section>
 
-      <main className="flex-1 max-w-2xl mx-auto px-4 py-12 w-full">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Settings</h2>
-          <p className="text-muted-foreground">Customize your experience</p>
-        </div>
-
-        <Card className="mb-6">
+        <Card>
           <CardHeader>
-            <CardTitle>Font Selection</CardTitle>
-            <CardDescription>
-              Choose your preferred font for blog titles and buttons
-            </CardDescription>
+            <CardTitle>本文フォント</CardTitle>
+            <CardDescription>ブログの本文と見出しに適用されます。</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {FONT_OPTIONS.map((option) => (
-                <div
-                  key={option.value}
-                  className="flex items-center gap-4 p-4 border border-border rounded-lg cursor-pointer hover:bg-accent transition-colors"
-                  onClick={() => handleFontChange(option.value)}
-                >
-                  <input
-                    type="radio"
-                    name="font"
-                    value={option.value}
-                    checked={selectedFont === option.value}
-                    onChange={() => handleFontChange(option.value)}
-                    className="w-4 h-4"
-                  />
-                  <div className="flex-1">
-                    <label className="font-semibold cursor-pointer block">
-                      {option.label}
-                    </label>
-                    <div
-                      className="text-sm text-muted-foreground mt-2"
-                      style={{ fontFamily: getFontFamily(option.value) }}
-                    >
-                      The quick brown fox jumps over the lazy dog
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>GitHub Repositories</CardTitle>
-            <CardDescription>
-              Add repositories to fetch articles from
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-3">
+          <CardContent className="space-y-4">
+            {FONT_OPTIONS.map(option => (
+              <button
+                key={option.value}
+                className="flex w-full items-center justify-between rounded-2xl border border-border/80 p-4 text-left hover:border-primary/40"
+                onClick={() => handleFontChange(option.value)}
+              >
                 <div>
-                  <label className="block text-sm font-medium mb-1">Repository Owner</label>
-                  <Input
-                    placeholder="GitHub username or organization"
-                    value={repoOwner}
-                    onChange={(e) => setRepoOwner(e.target.value)}
-                  />
+                  <p className="font-semibold" style={{ fontFamily: getBlogFontFamily(option.value) }}>
+                    {option.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{option.example}</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Repository Name</label>
-                  <Input
-                    placeholder="Repository name"
-                    value={repoName}
-                    onChange={(e) => setRepoName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Content Directory</label>
-                  <Input
-                    placeholder="articles"
-                    value={contentDir}
-                    onChange={(e) => setContentDir(e.target.value)}
-                  />
-                </div>
-                <Button
-                  onClick={async () => {
-                    if (!repoOwner || !repoName) {
-                      toast.error("Please fill in all fields");
-                      return;
-                    }
-                    try {
-                      await addRepositoryMutation.mutateAsync({
-                        owner: repoOwner,
-                        repo: repoName,
-                        contentDir: contentDir || "articles",
-                      });
-                      toast.success("Repository added");
-                      setRepoOwner("");
-                      setRepoName("");
-                      setContentDir("articles");
-                    } catch (error) {
-                      toast.error("Failed to add repository");
-                    }
-                  }}
-                  className="w-full"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Repository
-                </Button>
-              </div>
-
-              {repositories && repositories.length > 0 && (
-                <div className="mt-6 space-y-2">
-                  <h3 className="font-semibold">Added Repositories</h3>
-                  {repositories.map((repo: any) => (
-                    <div
-                      key={repo.id}
-                      className="flex items-center justify-between p-3 border border-border rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">{repo.owner}/{repo.repo}</p>
-                        <p className="text-sm text-muted-foreground">{repo.contentDir}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            await deleteRepositoryMutation.mutateAsync({ id: repo.id });
-                            toast.success("Repository removed");
-                          } catch (error) {
-                            toast.error("Failed to remove repository");
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                {blogFont === option.value && (
+                  <span className="rounded-full bg-primary/10 p-2 text-primary">
+                    <Check className="h-4 w-4" />
+                  </span>
+                )}
+              </button>
+            ))}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Theme</CardTitle>
-            <CardDescription>
-              Current theme: {theme === 'light' ? 'Light' : 'Dark'}
-            </CardDescription>
+            <CardTitle>テーマ</CardTitle>
+            <CardDescription>UI 全体のライト/ダークを切り替えます。</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              variant="outline"
-              onClick={toggleTheme}
-            >
-              {theme === 'light' ? (
-                <>
-                  <Moon className="w-4 h-4 mr-2" />
-                  Switch to Dark Mode
-                </>
-              ) : (
-                <>
-                  <Sun className="w-4 h-4 mr-2" />
-                  Switch to Light Mode
-                </>
-              )}
+            <Button variant="outline" onClick={toggleTheme} className="flex items-center gap-2">
+              {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              Switch to {theme === "light" ? "dark" : "light"} mode
             </Button>
           </CardContent>
         </Card>
-      </main>
 
-      <footer className="border-t border-border py-6 text-center text-muted-foreground">
-        <p>© 2025 {APP_TITLE}. All rights reserved.</p>
-      </footer>
+        <section className="grid gap-6 md:grid-cols-2">
+          {OPERATIONS_GUIDE.map(guide => (
+            <Card key={guide.title}>
+              <CardHeader>
+                <CardTitle>{guide.title}</CardTitle>
+                <CardDescription>{guide.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                  {guide.items.map(item => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>GitHub デプロイについて</CardTitle>
+            <CardDescription>フロントとバックエンドでホスティング戦略が異なります。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              {DEPLOY_TIPS.map(tip => (
+                <li key={tip}>{tip}</li>
+              ))}
+            </ul>
+            <div className="mt-4 rounded-xl border border-dashed border-border/70 p-4 text-xs text-muted-foreground">
+              <p className="font-semibold">必要な環境変数</p>
+              <p>GITHUB_OWNER / GITHUB_REPO / GITHUB_BRANCH / GITHUB_CONTENT_DIR / (任意) GITHUB_TOKEN</p>
+              <p className="mt-2">Node サーバーは Render などのホスティングへデプロイし、GitHub Pages には dist/public を配置すると構成がシンプルです。</p>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }

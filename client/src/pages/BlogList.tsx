@@ -1,65 +1,38 @@
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import Header from "@/components/Header";
-import { trpc as trpcClient } from "@/lib/trpc";
-
-type SourceType = 'all' | 'github' | 'zenn' | 'qiita';
+import { usePreferences, getBlogFontFamily } from "@/contexts/PreferencesContext";
 
 export default function BlogList() {
-  const { data: allArticles, isLoading, error } = trpc.blog.listAll.useQuery({ 
-    page: 1, 
+  const { data: allArticles, isLoading, error } = trpc.blog.listAll.useQuery({
+    page: 1,
     limit: 100,
     source: 'github'
   });
-  const { data: userSettings } = trpcClient.user.getSettings.useQuery();
   const [, navigate] = useLocation();
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
-  const [selectedSource, setSelectedSource] = useState<SourceType>('github');
-  const [blogFont, setBlogFont] = useState<"openai-sans" | "anthropic-serif" | "source-serif-4">("openai-sans");
+  const { blogFont } = usePreferences();
+  const fontFamily = getBlogFontFamily(blogFont);
 
-  useEffect(() => {
-    if (userSettings?.blogFont) {
-      setBlogFont(userSettings.blogFont as "openai-sans" | "anthropic-serif" | "source-serif-4");
-    }
-  }, [userSettings]);
-
-  const getFontFamily = () => {
-    switch (blogFont) {
-      case "anthropic-serif":
-        return "Georgia, 'Times New Roman', serif";
-      case "source-serif-4":
-        return "'Source Serif 4', Georgia, 'Times New Roman', serif";
-      default:
-        return "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    }
-  };
+  const articles = allArticles?.articles ?? [];
 
   // フィルタリングされた記事を計算
   const filteredArticles = useMemo(() => {
-    if (!allArticles?.articles) return [];
-    
-    return allArticles.articles.filter((article) => {
+    if (!articles) return [];
+    return articles.filter(article => {
       const topics = article.topics || [];
-      const source = article.sourceType;
-      
-      // トピックでフィルタリング
-      const matchesTopic = selectedTopic === null || 
-        topics.includes(selectedTopic);
-      
-      // 出典でフィルタリング（GitHub のみ）
-      const matchesSource = source === 'github';
-      
-      return matchesTopic && matchesSource;
+      const matchesTopic = selectedTopic === null || topics.includes(selectedTopic);
+      return matchesTopic;
     });
-  }, [allArticles?.articles, selectedTopic, selectedSource]);
+  }, [articles, selectedTopic]);
 
   // すべてのトピックを取得
   const allTopics = useMemo(() => {
-    if (!allArticles?.articles) return [];
+    if (!articles) return [];
     const topicsSet = new Set<string>();
-    allArticles.articles.forEach((article) => {
+    articles.forEach(article => {
       const topics = article.topics || [];
       topics.forEach((topic: string) => topicsSet.add(topic));
     });
@@ -82,7 +55,7 @@ export default function BlogList() {
         <div className="w-full max-w-2xl">
           {/* タイトル */}
           <div className="mb-16">
-            <h1 className="text-5xl font-bold mb-6 text-black dark:text-white" style={{ fontFamily: getFontFamily() }}>
+            <h1 className="text-5xl font-bold mb-6 text-black dark:text-white" style={{ fontFamily }}>
               My Articles
             </h1>
             <div className="h-px bg-gray-200 dark:bg-gray-800"></div>
@@ -144,7 +117,7 @@ export default function BlogList() {
 
           {!isLoading && filteredArticles && filteredArticles.length > 0 && (
             <div className="space-y-8">
-              {filteredArticles.map((article, index) => {
+              {filteredArticles.map(article => {
                 return (
                   <div
                     key={`${article.sourceType}-${article.sourceId}`}
@@ -154,44 +127,46 @@ export default function BlogList() {
                     }}
                   >
                     {/* 記事アイテム */}
-                    <div className="flex gap-6 pb-8 border-b border-gray-200 dark:border-gray-800 hover:border-gray-400 dark:hover:border-gray-600 transition-colors duration-200">
-                      {/* 絵文字 */}
-                      <div className="flex-shrink-0 pt-1">
-                        <span className="text-4xl block">
-                          {article.emoji || '📝'}
-                        </span>
-                      </div>
-
-                      {/* 記事情報 */}
-                      <div className="flex-1 min-w-0">
-                        {/* タイトル */}
-                        <h2 
-                          className="text-xl font-semibold text-black dark:text-white mb-3 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors duration-200 line-clamp-2"
-                          style={{ fontFamily: getFontFamily() }}
+                    <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white/70 p-6 shadow-sm transition hover:-translate-y-1 hover:border-gray-300 dark:border-gray-800 dark:bg-gray-900/60 dark:hover:border-gray-600 md:flex-row md:items-center">
+                      <div className="flex flex-1 flex-col gap-3">
+                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                          <span className="text-2xl">{article.emoji || '📝'}</span>
+                          <span>{formatDate(article.publishedAt)}</span>
+                          <span>by {article.author}</span>
+                          <span>・ {article.readingTimeMinutes} min read</span>
+                        </div>
+                        <h2
+                          className="text-2xl font-semibold text-black transition-colors group-hover:text-gray-600 dark:text-white dark:group-hover:text-gray-200"
+                          style={{ fontFamily }}
                         >
                           {article.title}
                         </h2>
-
-                        {/* メタ情報 */}
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                          <span>{formatDate(article.publishedAt)}</span>
-                          <span>by {article.author}</span>
-                          
-                          {/* トピック */}
-                          {article.topics && article.topics.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {article.topics.slice(0, 2).map((topic: string) => (
-                                <span 
-                                  key={topic}
-                                  className="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300"
-                                >
-                                  {topic}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <p className="text-gray-600 dark:text-gray-300 line-clamp-3">
+                          {article.summary}
+                        </p>
+                        {article.topics && article.topics.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {article.topics.slice(0, 3).map(topic => (
+                              <span
+                                key={topic}
+                                className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                              >
+                                {topic}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
+                      {article.heroImage && (
+                        <div className="h-32 w-full overflow-hidden rounded-xl md:w-48">
+                          <img
+                            src={article.heroImage}
+                            alt=""
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
